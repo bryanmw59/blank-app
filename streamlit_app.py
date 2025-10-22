@@ -21,7 +21,7 @@ facility_map = {
     "Durometer": ["Chanhassen, MN", "Madison Heights, MI"],
     "Brookfield Viscometer": ["Madison Heights, MI"],
     "Photorheometer": ["Madison Heights, MI"],
-    "Capillary Rheometer": ["Chanhassen, MN", "Bridgewater, NJ"],  # Updated
+    "Capillary Rheometer": ["Chanhassen, MN", "Bridgewater, NJ"],
     "UV Rheometer": ["Bridgewater, NJ"],
     "Confocal LSM": ["Bridgewater, NJ"],
     "SEM": ["Bridgewater, NJ"],
@@ -57,8 +57,7 @@ def suggest_method(method):
         st.warning("⚠️ No facility location found for this method.")
 
 # === STREAMLIT APP ===
-st.image("Henkel Logo.png",
-         caption="Company Logo", width = 200, use_container_width=False, channels="RBG")
+st.image("Henkel Logo.png", caption="Company Logo", width=200, use_container_width=False)
 st.title("Henkel NA Analytical Technique Decision Tool")
 
 main_choice = st.selectbox(
@@ -74,13 +73,14 @@ main_choice = st.selectbox(
     ]
 )
 
+# === CHEMICAL COMPOSITION ===
 if main_choice == "Chemical Composition":
     chem_choice = st.selectbox("What do you need to analyze?", [
         "Select...", "Identify chemical elements", "Identify functional groups",
         "Separate and identify organic compounds", "Quantify moisture or organics"
     ])
     if chem_choice == "Identify chemical elements":
-        trace = st.radio("Do you need trace-level detection?", ["Yes", "No"])
+        st.radio("Do you need trace-level detection?", ["Yes", "No"])
         suggest_method("Elemental Analysis Spectroscopy")
     elif chem_choice == "Identify functional groups":
         mat_type = st.radio("Material type:", ["Organic/polymeric", "Solid-state/carbon"])
@@ -98,6 +98,7 @@ if main_choice == "Chemical Composition":
         }[quant]
         suggest_method(method)
 
+# === PHYSICAL / MECHANICAL ===
 elif main_choice == "Physical / Mechanical Properties":
     mech = st.selectbox("Which property?", ["Hardness", "Tensile strength", "Viscosity / Flow"])
     if mech == "Hardness":
@@ -105,39 +106,50 @@ elif main_choice == "Physical / Mechanical Properties":
     elif mech == "Tensile strength":
         suggest_method("Tensometer")
     elif mech == "Viscosity / Flow":
-        flow = st.radio("Flow condition?", ["Low shear", "Light-sensitive", "Melt/high shear"])
-        method = {
-            "Low shear": "Brookfield Viscometer",
-            "Light-sensitive": "Photorheometer",
-            "Melt/high shear": "Capillary Rheometer"
-        }[flow]
-        suggest_method(method)
+        sample_form = st.radio("Sample type:", ["Low-viscosity liquids", "Photosensitive materials", "Molten polymers / high shear"])
+        if sample_form == "Low-viscosity liquids":
+            suggest_method("Brookfield Viscometer")
+        elif sample_form == "Photosensitive materials":
+            suggest_method("Photorheometer")
+        elif sample_form == "Molten polymers / high shear":
+            suggest_method("Capillary Rheometer")
 
+# === THERMAL ANALYSIS ===
 elif main_choice == "Thermal Analysis":
     thermal = st.selectbox("Which thermal property?", [
-        "Thermal transitions", "Thermal degradation", "Dimensional change with temp",
+        "Thermal transitions", "Thermal degradation", "Dimensional change with temperature",
         "Viscoelastic response", "TIM performance"
     ])
-    method_map = {
-        "Thermal transitions": "DSC",
-        "Thermal degradation": "TGA",
-        "Viscoelastic response": "DMA",
-        "TIM performance": "TIM Tester"
-    }
-    if thermal in method_map:
-        suggest_method(method_map[thermal])
-    elif thermal == "Dimensional change with temp":
-        option = st.radio("Choose method:", ["TMA", "Dilatometer"])
-        suggest_method(option)
+    
+    if thermal == "Thermal transitions":
+        metrics = st.multiselect("Which metrics do you need?", ["Glass Transition (Tg)", "Melting Point (Tm)", "Crystallization"])
+        st.write("📘 Thermal transitions such as Tg and Tm are typically measured using DSC.")
+        suggest_method("DSC")
+    elif thermal == "Thermal degradation":
+        st.write("📘 Use TGA to assess weight loss and degradation temperatures.")
+        suggest_method("TGA")
+    elif thermal == "Dimensional change with temperature":
+        metric = st.radio("Which metric?", ["CTE (Coefficient of Thermal Expansion)", "Thermal expansion curve"])
+        method = "TMA" if metric == "CTE (Coefficient of Thermal Expansion)" else "Dilatometer"
+        suggest_method(method)
+    elif thermal == "Viscoelastic response":
+        st.write("📘 Dynamic mechanical analysis measures storage/loss modulus across temperatures.")
+        suggest_method("DMA")
+    elif thermal == "TIM performance":
+        st.write("📘 Measures thermal impedance/conductivity of TIM materials.")
+        suggest_method("TIM Tester")
 
+# === SURFACE & BARRIER ===
 elif main_choice == "Surface & Barrier Properties":
-    sbp = st.selectbox("Property?", ["Surface energy / wettability", "Barrier properties"])
+    sbp = st.selectbox("Property?", ["Surface energy / wettability", "Water Vapor Transmission Rate (WVTR)"])
     if sbp == "Surface energy / wettability":
         surface = st.radio("Measurement type:", ["Contact angle", "Surface tension"])
         suggest_method("Goniometer" if surface == "Contact angle" else "Sessile Drop Surface Tension Analyzer")
-    elif sbp == "Barrier properties":
+    elif sbp == "Water Vapor Transmission Rate (WVTR)":
+        st.write("📘 WVTR directly quantifies the rate of water vapor passage through materials — critical for evaluating moisture barrier properties in films and packaging.")
         suggest_method("WVTR")
 
+# === ELECTRICAL ===
 elif main_choice == "Electrical Properties":
     elec = st.radio("Measurement:", ["Volume Resistivity", "Surface Resistance"])
     if elec == "Volume Resistivity":
@@ -145,11 +157,30 @@ elif main_choice == "Electrical Properties":
     else:
         st.warning("⚠️ Surface Resistance not yet mapped.")
 
+# === MICROSCOPY & IMAGING ===
 elif main_choice == "Microscopy & Imaging":
-    micro = st.selectbox("Technique:", [
-        "Confocal (optical)", "AFM (surface topology)", "SEM", "FIB/SEM", "EDS", "Ion Milling", "XRD", "XPS", "XRF"
+    micro_category = st.selectbox("What are you trying to visualize or measure?", [
+        "Surface topography (nanoscale)", 
+        "Internal microstructure (submicron-scale)",
+        "Surface composition (elemental)",
+        "Crystalline structure / phase",
+        "Optical sectioning (fluorescence/confocal)"
     ])
-    suggest_method(micro)
 
-
-
+    if micro_category == "Surface topography (nanoscale)":
+        st.write("📘 Use AFM for high-resolution surface imaging and roughness/topography at the nanoscale.")
+        suggest_method("AFM")
+    elif micro_category == "Internal microstructure (submicron-scale)":
+        st.write("📘 SEM is ideal for detailed imaging of surface fractures, while FIB/SEM can provide cross-sectional views.")
+        tool = st.radio("Select method:", ["SEM", "FIB/SEM"])
+        suggest_method(tool)
+    elif micro_category == "Surface composition (elemental)":
+        tool = st.radio("Select method:", ["EDS", "XPS", "XRF"])
+        st.write("📘 EDS is SEM-based for spot analysis, XPS is for surface chemistry, and XRF for bulk elemental data.")
+        suggest_method(tool)
+    elif micro_category == "Crystalline structure / phase":
+        st.write("📘 Use XRD to determine crystallinity, d-spacing, and phase composition.")
+        suggest_method("XRD")
+    elif micro_category == "Optical sectioning (fluorescence/confocal)":
+        st.write("📘 Confocal LSM enables optical sectioning of fluorescently labeled materials.")
+        suggest_method("Confocal LSM")
